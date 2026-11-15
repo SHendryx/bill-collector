@@ -2,9 +2,9 @@
 from dataclasses import dataclass
 from typing import Optional
 
-@dataclass
+@dataclass(kw_only=True)
 class Account:
     """Represent a bill collection account."""
-    id: Optional[int] = None
+    id: int | None = None
     number: str
     biller_id: int

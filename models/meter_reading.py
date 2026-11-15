@@ -2,12 +2,11 @@
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
-@dataclass
+@dataclass(kw_only=True)
 class MeterReading:
     """Represents a reading from a utility meter."""
-    id: Optional[int] = None
+    id: int | None = None
     meter_id: int
     bill_id: int
     start_date: date
