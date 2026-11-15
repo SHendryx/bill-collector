@@ -6,6 +6,7 @@ from typing import Optional
 class MeterReading:
     """Represents a reading from a utility meter."""
     id: Optional[int] = None
-    meter_id: int
+    meter_number: int
+    bill_id: int
     reading_value: float
     reading_date: str  # ISO format date string

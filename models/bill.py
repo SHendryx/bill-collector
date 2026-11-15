@@ -7,7 +7,9 @@ from datetime import date
 class Bill:
     """Represent a bill associated with an account."""  
     id: Optional[int] = None
+    biller_id: int
     account_id: int
     amount_due: str
     due_date: date  # ISO format date string
-    unit_of_measure: str  # e.g., "kWh", "CCF", "Therms"
+    start_date: date  # ISO format date string
+    end_date: date  # ISO format date string
