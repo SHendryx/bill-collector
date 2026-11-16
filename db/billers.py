@@ -1,4 +1,5 @@
-"""This module provides CRUD functions to interact with the 'billers' table in the SQLite database."""
+"""This module provides CRUD functions to interact with the 'billers' table in the 
+SQLite database."""
 from dataclasses import replace
 import sqlite3
 from db.mappers import row_to_biller
