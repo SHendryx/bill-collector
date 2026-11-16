@@ -44,3 +44,17 @@ def get_connection(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
+
+
+def init_db(db_path: Path | str = DEFAULT_DB_PATH) -> None:
+    """Create all tables and indexes by executing numbered .sql files in order."""
+    sql_files = sorted(SQL_DIR.glob("*.sql"))
+    if not sql_files:
+        raise FileNotFoundError(f"No .sql schema files found in {SQL_DIR}")
+
+    with get_connection(db_path) as conn:
+        for sql_file in sql_files:
+            conn.executescript(sql_file.read_text(encoding="utf-8"))
+
+
+__all__ = ["get_connection", "init_db", "DEFAULT_DB_PATH"]
