@@ -3,9 +3,9 @@ from datetime import date
 from decimal import Decimal, ROUND_DOWN
 from pathlib import Path
 import sqlite3
-from models import UnitOfMeasure
+from models.meter import UnitOfMeasure
 
-SQL_DIR = Path(__file__).parent / "schemas"
+SCHEMAS_DIR = Path(__file__).parent / "schemas"
 DEFAULT_DB_PATH = Path("billing.db")
 
 SCALE = Decimal("100")
@@ -48,9 +48,9 @@ def get_connection(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
 
 def init_db(db_path: Path | str = DEFAULT_DB_PATH) -> None:
     """Create all tables and indexes by executing numbered .sql files in order."""
-    sql_files = sorted(SQL_DIR.glob("*.sql"))
+    sql_files = sorted(SCHEMAS_DIR.glob("*.sql"))
     if not sql_files:
-        raise FileNotFoundError(f"No .sql schema files found in {SQL_DIR}")
+        raise FileNotFoundError(f"No .sql schema files found in {SCHEMAS_DIR}")
 
     with get_connection(db_path) as conn:
         for sql_file in sql_files:
