@@ -13,7 +13,12 @@ def db_conn() -> Iterator[sqlite3.Connection]:
     assert sql_files, f"No .sql schema files found in {SCHEMAS_DIR}"
 
     for sql_file in sql_files:
-        conn.executescript(sql_file.read_text(encoding="utf-8"))
+        try:
+            conn.executescript(sql_file.read_text(encoding="utf-8"))
+        except sqlite3.OperationalError as exc:
+            raise sqlite3.OperationalError(
+                f"SQL syntax error in {sql_file.name}: {exc}"
+            ) from exc
 
     # Re-enable foreign keys since executescript resets transaction state
     conn.execute("PRAGMA foreign_keys = ON;")
