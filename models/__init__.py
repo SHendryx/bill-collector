@@ -2,7 +2,7 @@
 from .account import Account
 from .bill import Bill
 from .biller import Biller
-from .meter import Meter
+from .meter import Meter, UnitOfMeasure
 from .meter_reading import MeterReading
 
 __all__ = [
@@ -10,5 +10,6 @@ __all__ = [
     "Bill",
     "Biller",
     "Meter",
+    "UnitOfMeasure",
     "MeterReading",
 ]
