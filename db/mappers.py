@@ -50,8 +50,5 @@ def row_to_meter_reading(row: sqlite3.Row) -> MeterReading:
         id=row["id"],
         meter_id=row["meter_id"],
         bill_id=row["bill_id"],
-        start_date=row["start_date"],
-        end_date=row["end_date"],
-        start_value=row["start_value"],
-        end_value=row["end_value"],
+        usage=row["usage"],
     )

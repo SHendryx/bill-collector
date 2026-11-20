@@ -10,19 +10,10 @@ def create_reading(conn: sqlite3.Connection, reading: MeterReading) -> MeterRead
     MeterReading with its ID."""
     cursor = conn.execute(
         """
-        INSERT INTO meter_readings (
-            meter_id, bill_id, start_date, end_date, start_value, end_value
-        )
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO meter_readings (meter_id, bill_id, usage)
+        VALUES (?, ?, ?)
         """,
-        (
-            reading.meter_id,
-            reading.bill_id,
-            reading.start_date,
-            reading.end_date,
-            reading.start_value,
-            reading.end_value,
-        ),
+        (reading.meter_id, reading.bill_id, reading.usage),
     )
     return replace(reading, id=cursor.lastrowid)
 
@@ -36,12 +27,15 @@ def get_reading(conn: sqlite3.Connection, reading_id: int) -> MeterReading | Non
 
 
 def list_readings_for_meter(conn: sqlite3.Connection, meter_id: int) -> list[MeterReading]:
-    """Return a list of all meter readings for a specific meter, ordered by end_date descending."""
+    """Return a list of all meter readings for a specific meter, ordered by the related 
+    bill's end_date descending."""
     rows = conn.execute(
         """
-        SELECT * FROM meter_readings
-        WHERE meter_id = ?
-        ORDER BY end_date DESC
+        SELECT mr.*
+        FROM meter_readings mr
+        JOIN bills b ON mr.bill_id = b.id
+        WHERE mr.meter_id = ?
+        ORDER BY b.end_date DESC
         """,
         (meter_id,),
     ).fetchall()
@@ -49,13 +43,13 @@ def list_readings_for_meter(conn: sqlite3.Connection, meter_id: int) -> list[Met
 
 
 def list_readings_for_bill(conn: sqlite3.Connection, bill_id: int) -> list[MeterReading]:
-    """Return a list of all meter readings for a specific bill, ordered by meter_id 
-    and start_date."""
+    """Return a list of all meter readings for a specific bill, ordered by the  
+    meter in ascending order."""
     rows = conn.execute(
         """
         SELECT * FROM meter_readings
         WHERE bill_id = ?
-        ORDER BY meter_id, start_date
+        ORDER BY meter_id
         """,
         (bill_id,),
     ).fetchall()
@@ -70,17 +64,13 @@ def update_reading(conn: sqlite3.Connection, reading: MeterReading) -> bool:
     cursor = conn.execute(
         """
         UPDATE meter_readings
-        SET meter_id = ?, bill_id = ?, start_date = ?, end_date = ?,
-            start_value = ?, end_value = ?
+        SET meter_id = ?, bill_id = ?, usage = ?,
         WHERE id = ?
         """,
         (
             reading.meter_id,
             reading.bill_id,
-            reading.start_date,
-            reading.end_date,
-            reading.start_value,
-            reading.end_value,
+            reading.usage,
             reading.id,
         ),
     )

@@ -1,4 +1,3 @@
-"""PyTest for BillCollector"""
 from datetime import date
 from decimal import Decimal
 import sqlite3
@@ -25,13 +24,6 @@ from db.bills import (
     list_bills,
     update_bill,
 )
-from db.meters import (
-    create_meter,
-    delete_meter,
-    get_meter,
-    list_meters,
-    update_meter,
-)
 from db.meter_readings import (
     create_reading,
     delete_reading,
@@ -40,13 +32,17 @@ from db.meter_readings import (
     list_readings_for_meter,
     update_reading,
 )
+from db.meters import (
+    create_meter,
+    delete_meter,
+    get_meter,
+    list_meters,
+    update_meter,
+)
 from models import Account, Bill, Biller, Meter, MeterReading, UnitOfMeasure
 
 
-
 def test_biller_crud(db_conn: sqlite3.Connection) -> None:
-    """Test the full CRUD lifecycle for a Biller, including creation, retrieval, 
-    update, and deletion."""
     created = create_biller(
         db_conn, Biller(name="Pacific Gas & Electric", website="https://pge.com")
     )
@@ -64,10 +60,9 @@ def test_biller_crud(db_conn: sqlite3.Connection) -> None:
     assert get_biller_by_id(db_conn, created.id) is None
 
 
-def test_account_and_meter_crud_with_enum_conversion(db_conn: sqlite3.Connection,) -> None:
-    """Test the full CRUD lifecycle for an Account and its associated Meter, including 
-    creation, retrieval, update, and deletion. Also verifies that the UnitOfMeasure 
-    enum is correctly converted to and from its string representation in the database."""
+def test_account_and_meter_crud_with_enum_conversion(
+    db_conn: sqlite3.Connection,
+) -> None:
     biller = create_biller(db_conn, Biller(name="City Water"))
     account = create_account(
         db_conn, Account(number="ACC-9001", biller_id=biller.id)
@@ -81,7 +76,6 @@ def test_account_and_meter_crud_with_enum_conversion(db_conn: sqlite3.Connection
         ),
     )
 
-    # Verify Account CRUD
     assert get_account(db_conn, account.id) == account
     assert list_accounts(db_conn, biller_id=biller.id) == [account]
 
@@ -89,7 +83,6 @@ def test_account_and_meter_crud_with_enum_conversion(db_conn: sqlite3.Connection
     assert update_account(db_conn, updated_account) is True
     assert get_account(db_conn, account.id) == updated_account
 
-    # Verify Meter CRUD & UnitOfMeasure StrEnum round-trip
     fetched_meter = get_meter(db_conn, meter.id)
     assert fetched_meter == meter
     assert isinstance(fetched_meter.unit_of_measure, UnitOfMeasure)
@@ -105,15 +98,13 @@ def test_account_and_meter_crud_with_enum_conversion(db_conn: sqlite3.Connection
     assert update_meter(db_conn, updated_meter) is True
     assert get_meter(db_conn, meter.id) == updated_meter
 
-    # Cleanup in child-to-parent order
     assert delete_meter(db_conn, meter.id) is True
     assert delete_account(db_conn, account.id) is True
 
 
-def test_bill_and_reading_crud_decimal_truncation_and_dates(db_conn: sqlite3.Connection,) -> None:
-    """Test the full CRUD lifecycle for a Bill and its associated MeterReading, including 
-    creation, retrieval, update, and deletion. Also verifies that DECIMAL values 
-    are truncated correctly and that date fields are handled properly."""
+def test_bill_and_reading_crud_decimal_truncation_and_dates(
+    db_conn: sqlite3.Connection,
+) -> None:
     biller = create_biller(db_conn, Biller(name="Metro Electric"))
     account = create_account(
         db_conn, Account(number="EL-100", biller_id=biller.id)
@@ -127,7 +118,6 @@ def test_bill_and_reading_crud_decimal_truncation_and_dates(db_conn: sqlite3.Con
         ),
     )
 
-    # Extra decimal places (142.859 -> 142.85) should truncate toward zero
     bill = create_bill(
         db_conn,
         Bill(
@@ -147,7 +137,6 @@ def test_bill_and_reading_crud_decimal_truncation_and_dates(db_conn: sqlite3.Con
     assert fetched_bill.due_date == date(2026, 12, 15)
     assert list_bills(db_conn, account_id=account.id) == [fetched_bill]
 
-    # Verify Bill update
     updated_bill = Bill(
         id=bill.id,
         account_id=account.id,
@@ -159,37 +148,28 @@ def test_bill_and_reading_crud_decimal_truncation_and_dates(db_conn: sqlite3.Con
     assert update_bill(db_conn, updated_bill) is True
     assert get_bill(db_conn, bill.id) == updated_bill
 
-    # Verify MeterReading truncation (100.129 -> 100.12, 250.999 -> 250.99)
+    # Verify MeterReading usage truncation (150.879 -> 150.87)
     reading = create_reading(
         db_conn,
         MeterReading(
             meter_id=meter.id,
             bill_id=bill.id,
-            start_date=date(2026, 11, 1),
-            end_date=date(2026, 11, 30),
-            start_value=Decimal("100.129"),
-            end_value=Decimal("250.999"),
+            usage=Decimal("150.879"),
         ),
     )
 
     fetched_reading = get_reading(db_conn, reading.id)
     assert fetched_reading is not None
-    assert fetched_reading.start_value == Decimal("100.12")
-    assert fetched_reading.end_value == Decimal("250.99")
     assert fetched_reading.usage == Decimal("150.87")
 
     assert list_readings_for_bill(db_conn, bill.id) == [fetched_reading]
     assert list_readings_for_meter(db_conn, meter.id) == [fetched_reading]
 
-    # Verify MeterReading update and delete
     updated_reading = MeterReading(
         id=reading.id,
         meter_id=meter.id,
         bill_id=bill.id,
-        start_date=date(2026, 11, 1),
-        end_date=date(2026, 11, 30),
-        start_value=Decimal("100.00"),
-        end_value=Decimal("260.50"),
+        usage=Decimal("160.50"),
     )
     assert update_reading(db_conn, updated_reading) is True
     assert get_reading(db_conn, reading.id) == updated_reading
@@ -199,14 +179,9 @@ def test_bill_and_reading_crud_decimal_truncation_and_dates(db_conn: sqlite3.Con
 
 
 def test_foreign_key_constraints(db_conn: sqlite3.Connection) -> None:
-    """Test that foreign key constraints are enforced, preventing insertion of child 
-    records with non-existent parents and restricting deletion of parent records with 
-    active children."""
-    # Cannot insert child with non-existent parent
     with pytest.raises(sqlite3.IntegrityError):
         create_account(db_conn, Account(number="BAD-ACC", biller_id=9999))
 
-    # ON DELETE RESTRICT prevents deleting parent with active child
     biller = create_biller(db_conn, Biller(name="Restricted Utility"))
     create_account(db_conn, Account(number="ACC-1", biller_id=biller.id))
 
@@ -214,15 +189,23 @@ def test_foreign_key_constraints(db_conn: sqlite3.Connection) -> None:
         delete_biller(db_conn, biller.id)
 
 
-def test_sql_aggregate_sum_with_decimal_colname(db_conn: sqlite3.Connection,) -> None:
-    """Test that SQL aggregate functions (SUM) work correctly with DECIMAL columns and
-    their string representations."""
+def test_sql_aggregate_sums_with_decimal_colname(
+    db_conn: sqlite3.Connection,
+) -> None:
     biller = create_biller(db_conn, Biller(name="Solar Co"))
     account = create_account(
         db_conn, Account(number="SOL-1", biller_id=biller.id)
     )
+    meter = create_meter(
+        db_conn,
+        Meter(
+            number="SOL-MTR",
+            account_id=account.id,
+            unit_of_measure=UnitOfMeasure.KWH,
+        ),
+    )
 
-    create_bill(
+    b1 = create_bill(
         db_conn,
         Bill(
             account_id=account.id,
@@ -232,7 +215,7 @@ def test_sql_aggregate_sum_with_decimal_colname(db_conn: sqlite3.Connection,) ->
             end_date=date(2026, 9, 30),
         ),
     )
-    create_bill(
+    b2 = create_bill(
         db_conn,
         Bill(
             account_id=account.id,
@@ -243,9 +226,17 @@ def test_sql_aggregate_sum_with_decimal_colname(db_conn: sqlite3.Connection,) ->
         ),
     )
 
-    row = db_conn.execute(
+    create_reading(db_conn, MeterReading(meter_id=meter.id, bill_id=b1.id, usage=Decimal("310.40")))
+    create_reading(db_conn, MeterReading(meter_id=meter.id, bill_id=b2.id, usage=Decimal("425.10")))
+
+    bill_row = db_conn.execute(
         'SELECT SUM(amount_due) AS "total [DECIMAL]" FROM bills WHERE account_id = ?',
         (account.id,),
     ).fetchone()
+    assert bill_row["total"] == Decimal("125.75")
 
-    assert row["total"] == Decimal("125.75")
+    usage_row = db_conn.execute(
+        'SELECT SUM(usage) AS "total_usage [DECIMAL]" FROM meter_readings WHERE meter_id = ?',
+        (meter.id,),
+    ).fetchone()
+    assert usage_row["total_usage"] == Decimal("735.50")
