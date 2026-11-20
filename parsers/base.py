@@ -1,10 +1,11 @@
-"""Defines intermediate data structures and regex helpers for parsing PDF utility bills."""
+"""Defines intermediate data structures, parser protocol, and regex helpers for PDF bills."""
 
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
 import re
+from typing import Protocol
 
 from models import UnitOfMeasure
 
@@ -30,6 +31,18 @@ class ParsedBill:
     start_date: date
     end_date: date
     readings: list[ParsedReading] = field(default_factory=list)
+
+
+class BillParser(Protocol):
+    """Protocol defining the required interface for all utility bill parsers."""
+
+    def can_parse(self, text: str) -> bool:
+        """Return True if this parser supports the given extracted PDF text."""
+        ...
+
+    def parse(self, text: str, pdf_path: Path) -> ParsedBill:
+        """Extract structured billing and usage data from raw PDF text."""
+        ...
 
 
 def extract_regex(pattern: str, text: str, field_name: str) -> str:

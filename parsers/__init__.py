@@ -1,10 +1,16 @@
-"""PDF text extraction and dispatcher for routing utility bills to provider parsers."""
+"""PDF text extraction and registry dispatcher for utility bill parsers."""
 
 from pathlib import Path
 from pypdf import PdfReader
 
-from parsers import pge
-from parsers.base import ParsedBill, ParsedReading
+from parsers import pge, smud
+from parsers.base import BillParser, ParsedBill, ParsedReading
+
+# Add new utility parser modules to this list as you create them
+AVAILABLE_PARSERS: list[BillParser] = [
+    smud,
+    pge,
+]
 
 
 def extract_pdf_text(pdf_path: Path) -> str:
@@ -21,7 +27,7 @@ def extract_pdf_text(pdf_path: Path) -> str:
 
 
 def parse_bill_pdf(pdf_path: Path) -> ParsedBill:
-    """Extract text from a PDF bill and dispatch it to a matching utility parser.
+    """Extract text from a PDF bill and dispatch it to the first matching parser.
 
     Args:
         pdf_path: Filesystem path to the PDF bill.
@@ -38,10 +44,18 @@ def parse_bill_pdf(pdf_path: Path) -> ParsedBill:
             f"'{pdf_path.name}' contains no selectable text (may be a scanned image)."
         )
 
-    if pge.can_parse(text):
-        return pge.parse_pge_pdf(text, pdf_path)
+    for parser in AVAILABLE_PARSERS:
+        if parser.can_parse(text):
+            return parser.parse(text, pdf_path)
 
     raise ValueError(f"No parser matched the utility provider in '{pdf_path.name}'.")
 
 
-__all__ = ["ParsedBill", "ParsedReading", "extract_pdf_text", "parse_bill_pdf"]
+__all__ = [
+    "AVAILABLE_PARSERS",
+    "BillParser",
+    "ParsedBill",
+    "ParsedReading",
+    "extract_pdf_text",
+    "parse_bill_pdf",
+]
