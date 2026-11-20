@@ -64,7 +64,7 @@ def update_reading(conn: sqlite3.Connection, reading: MeterReading) -> bool:
     cursor = conn.execute(
         """
         UPDATE meter_readings
-        SET meter_id = ?, bill_id = ?, usage = ?,
+        SET meter_id = ?, bill_id = ?, usage = ?
         WHERE id = ?
         """,
         (
