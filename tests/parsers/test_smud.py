@@ -1,4 +1,4 @@
-"""Unit tests for utility bill PDF parsers and parser registry routing."""
+"""Unit and integration tests for the SMUD utility bill parser."""
 
 from datetime import date
 from decimal import Decimal
@@ -6,10 +6,11 @@ from pathlib import Path
 import pytest
 
 from models import UnitOfMeasure
-from parsers import AVAILABLE_PARSERS, parse_bill_pdf
+from parsers import AVAILABLE_PARSERS, parse_bill_pdf, smud
 from parsers.base import ParsedReading
-from parsers import smud
+from tests.conftest import get_sample_pdfs
 
+SMUD_PDFS = get_sample_pdfs("smud")
 
 SAMPLE_SMUD_TEXT = """
 Your Electric Bill
@@ -66,12 +67,18 @@ def test_smud_parse_extracts_bill_and_readings() -> None:
     ]
 
 
-def test_parse_bill_pdf_dispatches_via_registry(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Verify parse_bill_pdf routes extracted text through AVAILABLE_PARSERS."""
-    monkeypatch.setattr("parsers.extract_pdf_text", lambda _: SAMPLE_SMUD_TEXT)
+@pytest.mark.skipif(
+    not SMUD_PDFS,
+    reason="No real SMUD PDF files found in /bills/smud/.",
+)
+@pytest.mark.parametrize("pdf_path", SMUD_PDFS, ids=lambda p: p.name)
+def test_parse_real_smud_bills(pdf_path: Path) -> None:
+    """Verify every real SMUD PDF in /bills/smud/ routes and parses cleanly."""
+    parsed = parse_bill_pdf(pdf_path)
 
-    parsed = parse_bill_pdf(Path("fake_smud.pdf"))
+    assert parsed.source_file == pdf_path
     assert parsed.biller_name == "SMUD"
-    assert parsed.amount_due == Decimal("139.56")
+    assert parsed.account_number
+    assert parsed.amount_due > Decimal("0.00")
+    assert parsed.end_date >= parsed.start_date
+    assert len(parsed.readings) >= 1
