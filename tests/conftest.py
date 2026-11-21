@@ -1,8 +1,28 @@
+"""Shared pytest fixtures and helpers for database and parser test suites."""
+
 from collections.abc import Iterator
+from pathlib import Path
 import sqlite3
 import pytest
 
 from db import SCHEMAS_DIR, get_connection
+
+BILLS_DIR = Path(__file__).resolve().parent.parent / "bills"
+
+
+def get_sample_pdfs(biller_folder: str) -> list[Path]:
+    """Return sorted PDF paths inside bills/<biller_folder>/ if the folder exists.
+
+    Args:
+        biller_folder: Subdirectory name under /bills/ (e.g., 'smud', 'pge').
+
+    Returns:
+        A sorted list of Path objects for all .pdf files found, or an empty list.
+    """
+    folder = BILLS_DIR / biller_folder
+    if not folder.is_dir():
+        return []
+    return sorted(folder.glob("*.pdf"))
 
 
 @pytest.fixture
@@ -20,7 +40,6 @@ def db_conn() -> Iterator[sqlite3.Connection]:
                 f"SQL syntax error in {sql_file.name}: {exc}"
             ) from exc
 
-    # Re-enable foreign keys since executescript resets transaction state
     conn.execute("PRAGMA foreign_keys = ON;")
 
     yield conn
