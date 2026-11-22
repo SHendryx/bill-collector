@@ -3,13 +3,14 @@
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
+import re
 
 from models import UnitOfMeasure
 from parsers.base import ParsedBill, ParsedReading, extract_regex
 
 
 def can_parse(text: str) -> bool:
-    """Check whether raw PDF text belongs to a PG&E statement.
+    """Check whether raw PDF text belongs to a PG&E energy statement.
 
     Args:
         text: Full text extracted from a PDF document.
@@ -17,55 +18,64 @@ def can_parse(text: str) -> bool:
     Returns:
         True if PG&E identifiers are found in the text, False otherwise.
     """
-    return "Pacific Gas and Electric" in text or "PG&E" in text
+    lowered = text.lower()
+    identifiers = (
+        "pge.com",
+        "pacific gas and electric",
+        "pg&e",
+        "95899-7300",
+    )
+    return any(identifier in lowered for identifier in identifiers)
 
 
 def _extract_readings(text: str) -> list[ParsedReading]:
-    """Extract meter usage readings from PG&E statement text if present.
+    """Extract gas and/or electric meter usage readings from PG&E Service Information blocks.
 
-    Supports statements showing direct total usage or start/end meter reads.
+    Matches blocks containing a 'Meter #' followed by 'Total Usage <value> <Therms|kWh>'.
 
     Args:
-        text: Full text extracted from a PDF document.
+        text: Full text extracted from a PG&E PDF document.
 
     Returns:
-        A list of ParsedReading instances found on the bill (empty if none exist).
+        A list of ParsedReading instances found on the statement.
     """
     readings: list[ParsedReading] = []
-    try:
-        meter_num = extract_regex(r"Meter Number:\s*(\w+)", text, "meter_number")
-    except ValueError:
-        return readings
 
-    # Try direct total usage first; fall back to calculating (end - start)
-    try:
-        usage_str = extract_regex(r"Total Usage:\s*([\d,.]+)\s*kWh", text, "usage")
-        usage = Decimal(usage_str.replace(",", ""))
-    except ValueError:
-        try:
-            start_str = extract_regex(r"Prior Read:\s*([\d,.]+)", text, "start_value")
-            end_str = extract_regex(r"Current Read:\s*([\d,.]+)", text, "end_value")
-            usage = Decimal(end_str.replace(",", "")) - Decimal(
-                start_str.replace(",", "")
-            )
-        except ValueError:
-            return readings
-
-    readings.append(
-        ParsedReading(
-            meter_number=meter_num,
-            usage=usage,
-            unit_of_measure=UnitOfMeasure.KWH,
-        )
+    pattern = re.compile(
+        r"Meter\s*#\s*(\w+).*?Total\s+Usage\s+([\d,.]+)\s*(Therms|kWh)",
+        re.IGNORECASE | re.DOTALL,
     )
+
+    for match in pattern.finditer(text):
+        meter_number = match.group(1).strip()
+        usage_str = match.group(2).replace(",", "")
+        unit_raw = match.group(3).strip().lower()
+
+        unit = (
+            UnitOfMeasure.THERMS
+            if unit_raw == "therms"
+            else UnitOfMeasure.KWH
+        )
+
+        readings.append(
+            ParsedReading(
+                meter_number=meter_number,
+                usage=Decimal(usage_str),
+                unit_of_measure=unit,
+            )
+        )
+
     return readings
 
 
-def parse_pge_pdf(text: str, pdf_path: Path) -> ParsedBill:
+def parse(text: str, pdf_path: Path) -> ParsedBill:
     """Parse raw PG&E PDF text into a structured ParsedBill object.
 
+    Supports both native PDF text extraction and Tesseract OCR output across
+    multiple statement layout revisions.
+
     Args:
-        text: Full text extracted from the PDF document.
+        text: Full text extracted from the PG&E PDF document.
         pdf_path: Filesystem path to the source PDF file.
 
     Returns:
@@ -74,27 +84,35 @@ def parse_pge_pdf(text: str, pdf_path: Path) -> ParsedBill:
     Raises:
         ValueError: If any required billing field cannot be extracted or parsed.
     """
-    account_num = extract_regex(r"Account No:\s*([\d-]+)", text, "account_number")
+    account_num = extract_regex(
+        r"Account\s+(?:No|Number):?\s*([\d-]+)", text, "account_number"
+    )
     amount_str = extract_regex(
-        r"Total Amount Due\s*\$([\d,]+\.\d{2})", text, "amount_due"
-    )
-    due_str = extract_regex(r"Due Date:\s*(\d{2}/\d{2}/\d{4})", text, "due_date")
-    period_str = extract_regex(
-        r"Billing Period:\s*(\d{2}/\d{2}/\d{4}\s*-\s*\d{2}/\d{2}/\d{4})",
+        r"Total\s+Amount\s+Due(?:\s+by\s+\d{2}/\d{2}/\d{4})?:?\s*\$?([\d,]+\.\d{2})",
         text,
-        "billing_period",
+        "amount_due",
     )
+    due_str = extract_regex(
+        r"Due\s+Date:?\s*(\d{2}/\d{2}/\d{4})", text, "due_date"
+    )
+    period_match = re.search(
+        r"(\d{2}/\d{2}/\d{4})\s*(?:to|-|–)\s*(\d{2}/\d{2}/\d{4})\s*\(\d+\s+billing\s+days\)",
+        text,
+        re.IGNORECASE,
+    )
+    if not period_match:
+        raise ValueError("Could not find 'billing_period' in PG&E PDF text.")
 
-    start_raw, end_raw = [part.strip() for part in period_str.split("-")]
-    start_dt = datetime.strptime(start_raw, "%m/%d/%Y").date()
-    end_dt = datetime.strptime(end_raw, "%m/%d/%Y").date()
+    start_dt = datetime.strptime(period_match.group(1), "%m/%d/%Y").date()
+    end_dt = datetime.strptime(period_match.group(2), "%m/%d/%Y").date()
+    due_dt = datetime.strptime(due_str, "%m/%d/%Y").date()
 
     return ParsedBill(
         source_file=pdf_path,
         biller_name="PG&E",
         account_number=account_num,
         amount_due=Decimal(amount_str.replace(",", "")),
-        due_date=datetime.strptime(due_str, "%m/%d/%Y").date(),
+        due_date=due_dt,
         start_date=start_dt,
         end_date=end_dt,
         readings=_extract_readings(text),
