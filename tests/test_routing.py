@@ -1,6 +1,7 @@
 """Tests for the central parser registry, file hashing, and PDF routing dispatcher."""
 
 from pathlib import Path
+
 import pytest
 
 from parsers import AVAILABLE_PARSERS, compute_file_hash, parse_bill_pdf

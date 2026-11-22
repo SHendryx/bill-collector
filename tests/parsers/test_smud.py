@@ -3,6 +3,7 @@
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+
 import pytest
 
 from models import UnitOfMeasure
@@ -14,7 +15,7 @@ SMUD_PDFS = get_sample_pdfs("smud")
 
 SAMPLE_SMUD_TEXT = """
 Your Electric Bill
-Phone Inquiries: 1 (888) 742-7683
+Phone Inquiries: 1 (888) 555-7777
 Account Number: 7777777
 Bill Issue Date: 10/22/26
 Bill Period: 09/22/26 - 10/20/26 (29 Days)

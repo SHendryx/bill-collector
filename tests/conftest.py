@@ -1,8 +1,9 @@
 """Shared pytest fixtures and helpers for database and parser test suites."""
 
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
-import sqlite3
+
 import pytest
 
 from db import SCHEMAS_DIR, get_connection

@@ -1,8 +1,9 @@
 """Integration tests for SQLite schemas, type converters, mappers, and CRUD modules."""
 
+import sqlite3
 from datetime import date
 from decimal import Decimal
-import sqlite3
+
 import pytest
 
 from db.accounts import (

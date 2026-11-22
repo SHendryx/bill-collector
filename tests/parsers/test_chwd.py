@@ -3,6 +3,7 @@
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+
 import pytest
 
 from models import UnitOfMeasure
@@ -13,8 +14,8 @@ from tests.conftest import get_sample_pdfs
 CHWD_PDFS = get_sample_pdfs("chwd")
 
 SAMPLE_LEGACY_CHWD_TEXT = """
-6230 Sylvan Rd Citrus Heights CA 95610
-15944 - 0042919
+666 Some Rd Some City CA 99999
+11111 - 0044444
 Citrus Heights Water District
 Visit our web site at www.chwd.org to pay bill on-line.
 Billing Cycle:
@@ -89,7 +90,7 @@ def test_chwd_parse_legacy_format() -> None:
 
     assert parsed.source_file == dummy_path
     assert parsed.biller_name == "Citrus Heights Water District"
-    assert parsed.account_number == "15944 - 0042919"
+    assert parsed.account_number == "11111 - 0044444"
     assert parsed.amount_due == Decimal("196.58")
     assert parsed.due_date == date(2024, 5, 16)
     assert parsed.start_date == date(2024, 2, 22)
