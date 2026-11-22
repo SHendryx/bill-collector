@@ -1,13 +1,18 @@
-"""Defines the Bill model for energy consumption billing."""
+"""Defines the Bill dataclass representing a utility billing statement."""
+
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
+
 
 @dataclass(kw_only=True)
 class Bill:
-    """Represent a bill associated with an account."""  
+    """Represents a utility billing statement linked to an account."""
+
     id: int | None = None
     account_id: int
-    amount_due: str
-    due_date: date  # ISO format date string
-    start_date: date  # ISO format date string
-    end_date: date  # ISO format date string
+    amount_due: Decimal
+    due_date: date
+    start_date: date
+    end_date: date
+    file_hash: str | None = None

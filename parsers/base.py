@@ -30,6 +30,7 @@ class ParsedBill:
     due_date: date
     start_date: date
     end_date: date
+    file_hash: str = ""
     readings: list[ParsedReading] = field(default_factory=list)
 
 
