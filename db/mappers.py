@@ -33,7 +33,14 @@ def row_to_meter(row: sqlite3.Row) -> Meter:
 
 
 def row_to_bill(row: sqlite3.Row) -> Bill:
-    """Create a Bill object from a database row."""
+    """Convert a SQLite row from the bills table into a Bill dataclass.
+
+    Args:
+        row: A sqlite3.Row retrieved from the bills table.
+
+    Returns:
+        A populated Bill instance.
+    """
     return Bill(
         id=row["id"],
         account_id=row["account_id"],
@@ -41,6 +48,7 @@ def row_to_bill(row: sqlite3.Row) -> Bill:
         due_date=row["due_date"],
         start_date=row["start_date"],
         end_date=row["end_date"],
+        file_hash=row["file_hash"],
     )
 
 

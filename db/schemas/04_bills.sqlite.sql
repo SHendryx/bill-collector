@@ -5,9 +5,11 @@ CREATE TABLE IF NOT EXISTS bills (
     due_date DATE NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
+    file_hash TEXT UNIQUE,
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE RESTRICT,
     CHECK (end_date >= start_date)
 );
 
 CREATE INDEX IF NOT EXISTS idx_bills_account_id ON bills(account_id);
 CREATE INDEX IF NOT EXISTS idx_bills_due_date ON bills(due_date);
+CREATE INDEX IF NOT EXISTS idx_bills_file_hash ON bills(file_hash);
