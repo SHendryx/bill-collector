@@ -2,9 +2,10 @@
 
 import hashlib
 from pathlib import Path
+
 import pymupdf
 
-from parsers import chwd, pge, smud
+from parsers import chwd, guild, pge, smud, xfinity
 from parsers.base import BillParser, ParsedBill, ParsedReading
 
 # Add new utility parser modules to this list as you create them
@@ -12,6 +13,8 @@ AVAILABLE_PARSERS: list[BillParser] = [
     smud,
     pge,
     chwd,
+    guild,
+    xfinity,
 ]
 
 
