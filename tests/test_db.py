@@ -1,3 +1,5 @@
+"""Integration tests for SQLite schemas, type converters, mappers, and CRUD modules."""
+
 from datetime import date
 from decimal import Decimal
 import sqlite3
@@ -21,6 +23,7 @@ from db.bills import (
     create_bill,
     delete_bill,
     get_bill,
+    get_bill_by_hash,
     list_bills,
     update_bill,
 )
@@ -43,6 +46,7 @@ from models import Account, Bill, Biller, Meter, MeterReading, UnitOfMeasure
 
 
 def test_biller_crud(db_conn: sqlite3.Connection) -> None:
+    """Verify create, read, list, update, and delete operations for Billers."""
     created = create_biller(
         db_conn, Biller(name="Pacific Gas & Electric", website="https://pge.com")
     )
@@ -63,6 +67,7 @@ def test_biller_crud(db_conn: sqlite3.Connection) -> None:
 def test_account_and_meter_crud_with_enum_conversion(
     db_conn: sqlite3.Connection,
 ) -> None:
+    """Verify Account and Meter CRUD operations and UnitOfMeasure StrEnum round-trip."""
     biller = create_biller(db_conn, Biller(name="City Water"))
     account = create_account(
         db_conn, Account(number="ACC-9001", biller_id=biller.id)
@@ -105,6 +110,7 @@ def test_account_and_meter_crud_with_enum_conversion(
 def test_bill_and_reading_crud_decimal_truncation_and_dates(
     db_conn: sqlite3.Connection,
 ) -> None:
+    """Verify Bill and MeterReading CRUD, two-decimal truncation, and date parsing."""
     biller = create_biller(db_conn, Biller(name="Metro Electric"))
     account = create_account(
         db_conn, Account(number="EL-100", biller_id=biller.id)
@@ -178,7 +184,46 @@ def test_bill_and_reading_crud_decimal_truncation_and_dates(
     assert delete_bill(db_conn, bill.id) is True
 
 
+def test_bill_file_hash_lookup_and_uniqueness(db_conn: sqlite3.Connection) -> None:
+    """Verify get_bill_by_hash finds imported bills and UNIQUE blocks duplicate hashes."""
+    biller = create_biller(db_conn, Biller(name="SMUD"))
+    account = create_account(
+        db_conn, Account(number="7777777", biller_id=biller.id)
+    )
+
+    sample_hash = "a" * 64
+    created = create_bill(
+        db_conn,
+        Bill(
+            account_id=account.id,
+            amount_due=Decimal("139.56"),
+            due_date=date(2026, 11, 18),
+            start_date=date(2026, 9, 22),
+            end_date=date(2026, 10, 20),
+            file_hash=sample_hash,
+        ),
+    )
+
+    fetched = get_bill_by_hash(db_conn, sample_hash)
+    assert fetched == created
+    assert get_bill_by_hash(db_conn, "b" * 64) is None
+
+    with pytest.raises(sqlite3.IntegrityError):
+        create_bill(
+            db_conn,
+            Bill(
+                account_id=account.id,
+                amount_due=Decimal("139.56"),
+                due_date=date(2026, 11, 18),
+                start_date=date(2026, 9, 22),
+                end_date=date(2026, 10, 20),
+                file_hash=sample_hash,
+            ),
+        )
+
+
 def test_foreign_key_constraints(db_conn: sqlite3.Connection) -> None:
+    """Verify SQLite foreign keys block orphan rows and restrict parent deletion."""
     with pytest.raises(sqlite3.IntegrityError):
         create_account(db_conn, Account(number="BAD-ACC", biller_id=9999))
 
@@ -192,6 +237,7 @@ def test_foreign_key_constraints(db_conn: sqlite3.Connection) -> None:
 def test_sql_aggregate_sums_with_decimal_colname(
     db_conn: sqlite3.Connection,
 ) -> None:
+    """Verify SQL SUM() queries return exact Python Decimal values via [DECIMAL]."""
     biller = create_biller(db_conn, Biller(name="Solar Co"))
     account = create_account(
         db_conn, Account(number="SOL-1", biller_id=biller.id)
@@ -226,8 +272,12 @@ def test_sql_aggregate_sums_with_decimal_colname(
         ),
     )
 
-    create_reading(db_conn, MeterReading(meter_id=meter.id, bill_id=b1.id, usage=Decimal("310.40")))
-    create_reading(db_conn, MeterReading(meter_id=meter.id, bill_id=b2.id, usage=Decimal("425.10")))
+    create_reading(
+        db_conn, MeterReading(meter_id=meter.id, bill_id=b1.id, usage=Decimal("310.40"))
+    )
+    create_reading(
+        db_conn, MeterReading(meter_id=meter.id, bill_id=b2.id, usage=Decimal("425.10"))
+    )
 
     bill_row = db_conn.execute(
         'SELECT SUM(amount_due) AS "total [DECIMAL]" FROM bills WHERE account_id = ?',

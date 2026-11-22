@@ -11,18 +11,19 @@ BILLS_DIR = Path(__file__).resolve().parent.parent / "bills"
 
 
 def get_sample_pdfs(biller_folder: str) -> list[Path]:
-    """Return sorted PDF paths inside bills/<biller_folder>/ if the folder exists.
+    """Return sorted PDF paths directly inside bills/test/<biller_folder>/.
 
     Args:
-        biller_folder: Subdirectory name under /bills/ (e.g., 'smud', 'pge').
+        biller_folder: Subdirectory name under /bills/test/ (e.g., 'smud', 'pge').
 
     Returns:
         A sorted list of Path objects for all .pdf files found, or an empty list.
     """
-    folder = BILLS_DIR / biller_folder
+    folder = BILLS_DIR / "test" / biller_folder
     if not folder.is_dir():
         return []
     return sorted(folder.glob("*.pdf"))
+
 
 
 @pytest.fixture
